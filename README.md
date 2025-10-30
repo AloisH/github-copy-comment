@@ -41,23 +41,45 @@ Hot reload enabled in dev mode.
 
 ## Installation
 
-### Option 1: Download from Releases (Recommended)
+### Chrome/Edge/Brave
+
+#### Option 1: Download from Releases (Recommended)
 
 1. Go to [Releases](../../releases)
 2. Download latest `github-pr-comment-copier-*.zip`
 3. Unzip the file
-4. Open Chrome: `chrome://extensions/`
+4. Open `chrome://extensions/`
 5. Enable "Developer mode" (top right)
 6. Click "Load unpacked"
 7. Select the unzipped folder
 
-### Option 2: Build from Source
+#### Option 2: Build from Source
 
 1. Build the extension: `bun run build`
-2. Open Chrome: `chrome://extensions/`
+2. Open `chrome://extensions/`
 3. Enable "Developer mode" (top right)
 4. Click "Load unpacked"
 5. Select the `dist/` folder
+
+### Firefox
+
+#### Option 1: Download from Releases (Recommended)
+
+1. Go to [Releases](../../releases)
+2. Download latest `github-pr-comment-copier-*.zip`
+3. Unzip the file
+4. Open `about:debugging#/runtime/this-firefox`
+5. Click "Load Temporary Add-on..."
+6. Select the `manifest.json` file from unzipped folder
+
+**Note:** Firefox requires temporary loading in developer mode. For permanent installation, the extension needs to be signed by Mozilla.
+
+#### Option 2: Build from Source
+
+1. Build the extension: `bun run build`
+2. Open `about:debugging#/runtime/this-firefox`
+3. Click "Load Temporary Add-on..."
+4. Select the `manifest.json` file from `dist/` folder
 
 ## Usage
 
