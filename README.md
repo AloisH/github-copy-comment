@@ -41,6 +41,18 @@ Hot reload enabled in dev mode.
 
 ## Installation
 
+### Option 1: Download from Releases (Recommended)
+
+1. Go to [Releases](../../releases)
+2. Download latest `github-pr-comment-copier-*.zip`
+3. Unzip the file
+4. Open Chrome: `chrome://extensions/`
+5. Enable "Developer mode" (top right)
+6. Click "Load unpacked"
+7. Select the unzipped folder
+
+### Option 2: Build from Source
+
 1. Build the extension: `bun run build`
 2. Open Chrome: `chrome://extensions/`
 3. Enable "Developer mode" (top right)
@@ -73,6 +85,8 @@ Hot reload enabled in dev mode.
 
 ```
 github-copy-comment/
+├── .github/workflows/
+│   └── release.yml     # CI/CD workflow
 ├── src/
 │   ├── content.ts      # Main content script
 │   └── styles.css      # Button styling
@@ -81,4 +95,29 @@ github-copy-comment/
 ├── vite.config.ts      # Vite configuration
 ├── tsconfig.json       # TypeScript config
 └── package.json
+```
+
+## Releasing
+
+### Automated Release (via GitHub Actions)
+
+Create a new release by pushing a tag:
+
+```bash
+git tag v1.0.0
+git push origin v1.0.0
+```
+
+GitHub Actions will automatically:
+1. Build the extension
+2. Create a ZIP file
+3. Create a GitHub release
+4. Attach the ZIP to the release
+
+### Manual Release
+
+```bash
+bun run build
+cd dist
+zip -r ../github-pr-comment-copier.zip .
 ```
