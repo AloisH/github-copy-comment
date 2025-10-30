@@ -9,6 +9,17 @@ interface CommentData {
     code?: string;
 }
 
+interface ThreadData {
+    file?: string;
+    line?: string;
+    code?: string;
+    comments: Array<{
+        author: string;
+        content: string;
+        timestamp?: string;
+    }>;
+}
+
 function escapeXML(str: string): string {
     if (!str) return "";
     return str
@@ -41,12 +52,145 @@ function formatCommentAsXML(commentData: CommentData): string {
     return xml;
 }
 
+function formatThreadAsXML(threadData: ThreadData): string {
+    let xml = "<thread>\n";
+
+    if (threadData.file) {
+        xml += `  <file>${escapeXML(threadData.file)}</file>\n`;
+    }
+    if (threadData.line) {
+        xml += `  <line>${escapeXML(threadData.line)}</line>\n`;
+    }
+
+    if (threadData.code) {
+        xml += `  <code>\n${escapeXML(threadData.code)}\n  </code>\n`;
+    }
+
+    xml += "  <comments>\n";
+    threadData.comments.forEach((comment) => {
+        xml += "    <comment>\n";
+        xml += `      <author>${escapeXML(comment.author)}</author>\n`;
+        if (comment.timestamp) {
+            xml += `      <timestamp>${escapeXML(comment.timestamp)}</timestamp>\n`;
+        }
+        xml += `      <content>${escapeXML(comment.content)}</content>\n`;
+        xml += "    </comment>\n";
+    });
+    xml += "  </comments>\n";
+    xml += "</thread>";
+
+    return xml;
+}
+
+function extractThreadData(commentElement: Element): ThreadData | null {
+    const reviewThread = commentElement.closest(
+        ".review-thread-component, .js-resolvable-timeline-thread-container",
+    );
+
+    if (!reviewThread) return null;
+
+    const threadData: ThreadData = {
+        comments: [],
+    };
+
+    // Extract file path
+    const fileLink = reviewThread.querySelector(
+        'a.text-mono, a[href*="/files/"]',
+    );
+    if (fileLink) {
+        threadData.file = fileLink.textContent?.trim() || "";
+    }
+
+    // Extract code from diff table
+    const diffTable = reviewThread.querySelector(".diff-table");
+    if (diffTable) {
+        const codeLines: string[] = [];
+        const rows = diffTable.querySelectorAll("tr");
+
+        rows.forEach((row) => {
+            const lineNumCell = row.querySelector("td[data-line-number]");
+            const codeCell = row.querySelector("td.blob-code");
+
+            if (lineNumCell && codeCell) {
+                const lineNum = lineNumCell.getAttribute("data-line-number");
+                const codeText = codeCell.textContent?.trim() || "";
+
+                if (lineNum) {
+                    codeLines.push(`${lineNum}: ${codeText}`);
+                }
+            }
+        });
+
+        if (codeLines.length > 0) {
+            threadData.code = codeLines.join("\n");
+            // Use the last line number
+            const lastLine = codeLines[codeLines.length - 1];
+            const lineMatch = lastLine.match(/^(\d+):/);
+            if (lineMatch) {
+                threadData.line = lineMatch[1];
+            }
+        }
+    }
+
+    // Extract all comments in the thread
+    const commentElements = reviewThread.querySelectorAll(
+        ".review-comment, .timeline-comment",
+    );
+
+    commentElements.forEach((comment) => {
+        const author =
+            comment.querySelector(".author")?.textContent?.trim() || "Unknown";
+        const bodyEl = comment.querySelector(".comment-body");
+        const content = bodyEl?.textContent?.trim() || "";
+
+        if (content) {
+            const timestamp =
+                comment
+                    .querySelector("relative-time")
+                    ?.getAttribute("datetime") || "";
+
+            threadData.comments.push({
+                author,
+                content,
+                timestamp,
+            });
+        }
+    });
+
+    return threadData.comments.length > 0 ? threadData : null;
+}
+
 async function copyCommentToClipboard(
     button: HTMLButtonElement,
     commentData: CommentData,
 ): Promise<void> {
     try {
         const xml = formatCommentAsXML(commentData);
+        await navigator.clipboard.writeText(xml);
+
+        // Success feedback
+        const originalText = button.textContent;
+        button.textContent = "✓";
+        button.style.backgroundColor = "#28a745";
+        setTimeout(() => {
+            button.textContent = originalText;
+            button.style.backgroundColor = "#0969da";
+        }, 1500);
+    } catch (err) {
+        console.error("Failed to copy:", err);
+        button.textContent = "✗";
+        setTimeout(() => {
+            button.textContent = "Copy";
+        }, 1500);
+    }
+}
+
+async function copyThreadToClipboard(
+    button: HTMLButtonElement,
+    threadData: ThreadData,
+): Promise<void> {
+    try {
+        const xml = formatThreadAsXML(threadData);
         await navigator.clipboard.writeText(xml);
 
         // Success feedback
@@ -83,20 +227,63 @@ function addCopyButtonToComment(
 
     if (!content) return;
 
+    // For review comments, try to extract thread data first
+    let threadData: ThreadData | null = null;
+    if (isReview) {
+        threadData = extractThreadData(commentElement);
+    }
+
+    // If we have thread data with multiple comments, use thread copying
+    if (threadData && threadData.comments.length > 1) {
+        // Create button for thread copying
+        const button = document.createElement("button");
+        button.textContent = "Copy";
+        button.className = "pr-comment-copy-btn";
+        button.onclick = (e) => {
+            e.preventDefault();
+            copyThreadToClipboard(button, threadData!);
+        };
+
+        // Find best place to insert button
+        const commentActions = commentElement.querySelector(
+            ".timeline-comment-actions, .comment-actions",
+        );
+        if (commentActions) {
+            commentActions.appendChild(button);
+        } else {
+            // Fallback: prepend to comment header
+            const header = commentElement.querySelector(
+                ".timeline-comment-header, .review-comment-contents",
+            );
+            if (header && header instanceof HTMLElement) {
+                header.style.position = "relative";
+                button.style.position = "absolute";
+                button.style.right = "10px";
+                button.style.top = "10px";
+                header.appendChild(button);
+            }
+        }
+        return;
+    }
+
+    // Otherwise, use single comment copying
     const commentData: CommentData = {
         author: author,
         content: content,
     };
 
     // Extract file/line for review comments
-    if (isReview) {
-        // Look for review thread container that has file info
+    if (isReview && threadData) {
+        commentData.file = threadData.file;
+        commentData.line = threadData.line;
+        commentData.code = threadData.code;
+    } else if (isReview) {
+        // Fallback extraction if thread data didn't work
         const reviewThread = commentElement.closest(
             ".review-thread-component, .js-resolvable-timeline-thread-container",
         );
 
         if (reviewThread) {
-            // File path from link in thread header
             const fileLink = reviewThread.querySelector(
                 'a.text-mono, a[href*="/files/"]',
             );
@@ -105,7 +292,6 @@ function addCopyButtonToComment(
             }
         }
 
-        // If not found in thread, try other methods
         if (!commentData.file) {
             const diffFile = commentElement.closest(
                 ".js-file, [data-path], .file",
@@ -124,12 +310,10 @@ function addCopyButtonToComment(
             }
         }
 
-        // Find line numbers and code from the diff table
         const diffTable =
             reviewThread?.querySelector(".diff-table") ||
             commentElement.closest("table.diff-table");
         if (diffTable) {
-            // Get all code lines from the diff
             const codeLines: string[] = [];
             const rows = diffTable.querySelectorAll("tr");
 
@@ -142,7 +326,7 @@ function addCopyButtonToComment(
                         lineNumCell.getAttribute("data-line-number");
                     const codeText = codeCell.textContent?.trim() || "";
 
-                    if (lineNum && codeText) {
+                    if (lineNum) {
                         codeLines.push(`${lineNum}: ${codeText}`);
                     }
                 }
@@ -150,7 +334,6 @@ function addCopyButtonToComment(
 
             if (codeLines.length > 0) {
                 commentData.code = codeLines.join("\n");
-                // Use the last line number
                 const lastLine = codeLines[codeLines.length - 1];
                 const lineMatch = lastLine.match(/^(\d+):/);
                 if (lineMatch) {
