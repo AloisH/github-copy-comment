@@ -1,0 +1,20 @@
+.pr-comment-copy-btn {
+  background-color: #0969da;
+  color: white;
+  border: 1px solid rgba(27, 31, 36, 0.15);
+  padding: 3px 12px;
+  font-size: 12px;
+  font-weight: 500;
+  border-radius: 6px;
+  cursor: pointer;
+  margin-left: 8px;
+  transition: background-color 0.2s;
+}
+
+.pr-comment-copy-btn:hover {
+  background-color: #0860ca;
+}
+
+.pr-comment-copy-btn:active {
+  background-color: #0757ba;
+}

@@ -1,0 +1,24 @@
+{
+  "name": "github-copy-comment",
+  "version": "1.0.0",
+  "description": "Chrome extension to copy GitHub PR comments in AI-friendly XML format.",
+  "type": "module",
+  "scripts": {
+    "dev": "vite",
+    "build": "vite build",
+    "preview": "vite preview"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "private": true,
+  "devDependencies": {
+    "@crxjs/vite-plugin": "^2.2.1",
+    "@types/bun": "latest",
+    "@types/chrome": "^0.1.27",
+    "vite": "^7.1.12"
+  },
+  "peerDependencies": {
+    "typescript": "^5"
+  }
+}
