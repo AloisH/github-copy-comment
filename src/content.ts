@@ -20,6 +20,15 @@ interface ThreadData {
     }>;
 }
 
+// ponytail: bot/Copilot comments are React-rendered with none of the legacy
+// classes, so every lookup needs the data-testid variant alongside it.
+const COMMENT_SELECTOR =
+    '.review-comment, .timeline-comment, [data-testid="automated-review-comment"]';
+const AUTHOR_SELECTOR = '.author, [data-testid="avatar-name"]';
+const BODY_SELECTOR = ".comment-body, .markdown-body";
+const ACTIONS_SELECTOR =
+    ".timeline-comment-actions, .comment-actions, [data-testid='comment-header-right-side-items']";
+
 function escapeXML(str: string): string {
     if (!str) return "";
     return str
@@ -133,14 +142,13 @@ function extractThreadData(commentElement: Element): ThreadData | null {
     }
 
     // Extract all comments in the thread
-    const commentElements = reviewThread.querySelectorAll(
-        ".review-comment, .timeline-comment",
-    );
+    const commentElements = reviewThread.querySelectorAll(COMMENT_SELECTOR);
 
     commentElements.forEach((comment) => {
         const author =
-            comment.querySelector(".author")?.textContent?.trim() || "Unknown";
-        const bodyEl = comment.querySelector(".comment-body");
+            comment.querySelector(AUTHOR_SELECTOR)?.textContent?.trim() ||
+            "Unknown";
+        const bodyEl = comment.querySelector(BODY_SELECTOR);
         const content = bodyEl?.textContent?.trim() || "";
 
         if (content) {
@@ -220,9 +228,9 @@ function addCopyButtonToComment(
     }
 
     const author =
-        commentElement.querySelector(".author")?.textContent?.trim() ||
+        commentElement.querySelector(AUTHOR_SELECTOR)?.textContent?.trim() ||
         "Unknown";
-    const bodyEl = commentElement.querySelector(".comment-body");
+    const bodyEl = commentElement.querySelector(BODY_SELECTOR);
     const content = bodyEl?.textContent?.trim() || "";
 
     if (!content) return;
@@ -245,9 +253,8 @@ function addCopyButtonToComment(
         };
 
         // Find best place to insert button
-        const commentActions = commentElement.querySelector(
-            ".timeline-comment-actions, .comment-actions",
-        );
+        const commentActions =
+            commentElement.querySelector(ACTIONS_SELECTOR);
         if (commentActions) {
             commentActions.appendChild(button);
         } else {
@@ -353,9 +360,7 @@ function addCopyButtonToComment(
     };
 
     // Find best place to insert button
-    const commentActions = commentElement.querySelector(
-        ".timeline-comment-actions, .comment-actions",
-    );
+    const commentActions = commentElement.querySelector(ACTIONS_SELECTOR);
     if (commentActions) {
         commentActions.appendChild(button);
     } else {
@@ -373,15 +378,16 @@ function addCopyButtonToComment(
     }
 }
 
-function addCopyButtonsToAllComments(): void {
-    // Conversation comments
-    document.querySelectorAll(".timeline-comment").forEach((comment) => {
-        addCopyButtonToComment(comment, false);
-    });
+const THREAD_SELECTOR =
+    ".review-thread-component, .js-resolvable-timeline-thread-container";
 
-    // Review comments
-    document.querySelectorAll(".review-comment").forEach((comment) => {
-        addCopyButtonToComment(comment, true);
+function isReviewComment(comment: Element): boolean {
+    return !!comment.closest(THREAD_SELECTOR);
+}
+
+function addCopyButtonsToAllComments(): void {
+    document.querySelectorAll(COMMENT_SELECTOR).forEach((comment) => {
+        addCopyButtonToComment(comment, isReviewComment(comment));
     });
 }
 
@@ -408,21 +414,14 @@ const observer = new MutationObserver((mutations) => {
                 // Element node
                 const element = node as Element;
                 // Check if the added node is a comment or contains comments
-                if (
-                    element.matches?.(".timeline-comment") ||
-                    element.matches?.(".review-comment")
-                ) {
-                    addCopyButtonToComment(
-                        element,
-                        element.matches(".review-comment"),
-                    );
+                if (element.matches?.(COMMENT_SELECTOR)) {
+                    addCopyButtonToComment(element, isReviewComment(element));
                 } else if (element.querySelectorAll) {
                     element
-                        .querySelectorAll(".timeline-comment")
-                        .forEach((c) => addCopyButtonToComment(c, false));
-                    element
-                        .querySelectorAll(".review-comment")
-                        .forEach((c) => addCopyButtonToComment(c, true));
+                        .querySelectorAll(COMMENT_SELECTOR)
+                        .forEach((c) =>
+                            addCopyButtonToComment(c, isReviewComment(c)),
+                        );
                 }
             }
         });
